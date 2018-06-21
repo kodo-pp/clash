@@ -2,37 +2,39 @@
 
 declare -g __class__instances_count=0
 
+. exception.sh
+
 # These are exceptions. Unfortunately there is no way of catching them, yet.
-function raise() {
-    echo "Exception raised, terminating" >&2
-    echo "Exception text: $@" >&2
-    __exception:backtrace
-    kill $$
-    exit 143
-}
-
-function __exception:backtrace() {
-    {
-        echo "Backtrace:"
-
-        local cnt=2
-        for i in "${FUNCNAME[@]}"; do
-            case $cnt in
-            0)
-                echo "  Called from $i()"
-                ;;
-            1)
-                cnt=0
-                echo "  At $i()"
-                ;;
-            2)
-                cnt=1
-                ;;
-            esac
-        done
-        echo
-    } >&2
-}
+#function raise() {
+#    echo "Exception raised, terminating" >&2
+#    echo "Exception text: $@" >&2
+#    __exception:backtrace
+#    kill $$
+#    exit 143
+#}
+#
+#function __exception:backtrace() {
+#    {
+#        echo "Backtrace:"
+#
+#        local cnt=2
+#        for i in "${FUNCNAME[@]}"; do
+#            case $cnt in
+#            0)
+#                echo "  Called from $i()"
+#                ;;
+#            1)
+#                cnt=0
+#                echo "  At $i()"
+#                ;;
+#            2)
+#                cnt=1
+#                ;;
+#            esac
+#        done
+#        echo
+#    } >&2
+#}
 
 # And... Classes
 function class() {
@@ -53,7 +55,7 @@ function new() {
     shift
 
     if ! __class:defined "$classname"; then
-        raise "Class $classname does not exist"
+        raise EINEX "Class $classname does not exist"
     fi
 
     obj_id=$(__class:instantiate "$classname")
@@ -67,7 +69,7 @@ function get_self() {
 
 function prop.set() {
     if ! __class:is_safe_identifier "$1"; then
-        raise "Invalid property identifier"
+        raise EIINVAL "Invalid property identifier"
     fi
     if ! __var_exist "__class__property_${INSTANCE_ID}_$1"; then
         declare -g "__class__property_${INSTANCE_ID}_$1"
@@ -77,11 +79,11 @@ function prop.set() {
 
 function prop.get() {
     if ! __class:is_safe_identifier "$1"; then
-        raise "Invalid property identifier"
+        raise EIINVAL "Invalid property identifier"
     fi
 
     if ! __var_exist "__class__property_${INSTANCE_ID}_$1"; then
-        raise "Property '$1' is not initialized or does not exist"
+        raise EINEX "Property '$1' is not initialized or does not exist"
     fi
     __var_get "__class__property_${INSTANCE_ID}_$1"
 }
@@ -92,7 +94,7 @@ function prop.call() {
 
 function __class:defined() {
     if ! __class:is_safe_identifier "$1"; then
-        raise "Invalid class identifier"
+        raise EIINVAL "Invalid class identifier"
     fi
     if set | grep -q "^__class__classname_$1=yes\$"; then
         return 0
@@ -113,14 +115,14 @@ function __class:register_classname() {
     if __class:is_safe_identifier "$1"; then
         declare -g "__class__classname_$1"=yes
     else
-        raise "Invalid class identifier"
+        raise EIINVAL "Invalid class identifier"
     fi
 }
 
 function __class:instantiate() {
     classname="$1"
     if ! __class:defined "$classname"; then
-        raise "Class $classname does not exist"
+        raise EINEX "Class $classname does not exist"
     fi
 
     echo $__class__instances_count
